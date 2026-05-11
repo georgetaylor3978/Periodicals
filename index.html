@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contributions to the Canada Periodical Fund (Media)</title>
+    <meta name="description" content="Department of Heritage and Multiculturalism — funds paid to media through the Canada Periodical Fund. Excludes CBC crown corporation.">
+    <link rel="stylesheet" href="index.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+</head>
+<body>
+    <div id="loader" class="loading"><span class="loading-text">Loading Periodical Fund Data…</span></div>
+
+    <header>
+        <div class="title-container">
+            <h1>Contributions to the Canada Periodical Fund (Media)</h1>
+            <p>Heritage &amp; Multiculturalism &bull; Excludes CBC Crown Corporation &bull; 2012–2025</p>
+        </div>
+        <div class="header-meta" id="headerMeta"></div>
+        <button class="theme-toggle" id="themeToggle" title="Toggle light/dark mode" aria-label="Toggle theme">
+            <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+            <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+        </button>
+    </header>
+
+    <main>
+        <!-- KPI Cards -->
+        <div class="kpi-grid" id="kpiGrid"></div>
+
+        <!-- Controls -->
+        <div class="controls-panel">
+            <div class="control-group control-group-wide">
+                <label>Recipient</label>
+                <div class="recipient-picker" id="recipientPicker">
+                    <button class="picker-btn" id="recipientPickerBtn" type="button" aria-haspopup="true" aria-expanded="false">
+                        <span id="recipientPickerLabel">All Recipients</span>
+                        <svg class="picker-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                    <div class="picker-dropdown" id="recipientDropdown" role="listbox" aria-label="Recipient selector">
+                        <input type="text" class="picker-search" id="recipientSearch" placeholder="Search recipients…" autocomplete="off" />
+                        <div class="picker-actions">
+                            <button class="picker-action-btn" id="selectAllBtn">Select All</button>
+                            <button class="picker-action-btn" id="selectNoneBtn">Select None</button>
+                        </div>
+                        <div class="picker-list" id="recipientList"></div>
+                        <div class="picker-footer" id="recipientFooter"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Province</label>
+                <select id="provinceFilter">
+                    <option value="ALL">All Provinces</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Start Year <span class="tag" title="Affects trend chart">Trend</span></label>
+                <select id="startYearFilter"></select>
+            </div>
+            <div class="control-group">
+                <label>End Year</label>
+                <select id="yearFilter"></select>
+            </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="chart-grid">
+            <!-- Trend Chart -->
+            <div class="card card-wide">
+                <div class="card-header">
+                    <div>
+                        <h2 id="trendTitle">Funding Over Time</h2>
+                        <p class="card-subtitle">Annual transfer payment amounts ($)</p>
+                    </div>
+                    <div class="trend-chart-controls">
+                        <button id="trendMetricToggle" class="toggle-btn" title="Switch between Amount and Count">
+                            <span class="toggle-icon">$</span> Amount
+                        </button>
+                    </div>
+                </div>
+                <div class="chart-container tall">
+                    <canvas id="lineChart"></canvas>
+                </div>
+                <div class="chart-source">Proactive Disclosure — Transfer Payment Reports &bull; Heritage &amp; Multiculturalism</div>
+                <div class="trend-summary" id="trendSummary"></div>
+            </div>
+
+            <!-- Top Recipients Bar -->
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <h2>Top Recipients: <span id="barYear"></span></h2>
+                        <p class="card-subtitle" id="barSubtitle">Ranked by Funding Amount</p>
+                    </div>
+                </div>
+                <div class="chart-container tall">
+                    <canvas id="barChart"></canvas>
+                </div>
+                <div class="chart-source">Proactive Disclosure — Transfer Payment Reports &bull; Heritage &amp; Multiculturalism</div>
+            </div>
+
+            <!-- Province Distribution -->
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <h2>Funding by Province: <span id="donutYear"></span></h2>
+                        <p class="card-subtitle" id="donutSubtitle">Share of Total Funding</p>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="donutChart"></canvas>
+                </div>
+                <div class="chart-source">Proactive Disclosure — Transfer Payment Reports &bull; Heritage &amp; Multiculturalism</div>
+            </div>
+
+            <!-- Canada Map -->
+            <div class="card card-wide">
+                <div class="card-header">
+                    <div>
+                        <h2>Provincial Funding Map: <span id="mapYear"></span></h2>
+                        <p class="card-subtitle">Hover or tap a province for details</p>
+                    </div>
+                </div>
+                <div class="map-container" id="mapContainer">
+                    <svg id="canadaMap" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet"></svg>
+                </div>
+                <div class="map-tooltip" id="mapTooltip"></div>
+                <div class="map-legend" id="mapLegend"></div>
+                <div class="chart-source">Proactive Disclosure — Transfer Payment Reports &bull; Heritage &amp; Multiculturalism</div>
+            </div>
+
+            <!-- YoY Change Chart -->
+            <div class="card card-wide">
+                <div class="card-header">
+                    <div>
+                        <h2>Year-over-Year Change</h2>
+                        <p class="card-subtitle" id="yoySubtitle">% Change in Total Funding from Prior Year</p>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="yoyChart"></canvas>
+                </div>
+                <div class="chart-source">Proactive Disclosure — Transfer Payment Reports &bull; Heritage &amp; Multiculturalism</div>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="table-section">
+            <div class="table-header">
+                <h2>Detailed Data</h2>
+                <div class="table-controls">
+                    <input type="search" id="tableSearch" placeholder="Search recipients…" />
+                    <select id="tableSortField">
+                        <option value="year">Sort by Year</option>
+                        <option value="amount">Sort by Amount</option>
+                        <option value="recipient">Sort by Recipient</option>
+                        <option value="province">Sort by Province</option>
+                        <option value="count">Sort by Count</option>
+                    </select>
+                    <select id="tableSortDir">
+                        <option value="desc">Descending</option>
+                        <option value="asc">Ascending</option>
+                    </select>
+                </div>
+            </div>
+            <div class="table-container">
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th>Year</th>
+                            <th>Province</th>
+                            <th>Recipient</th>
+                            <th>Count</th>
+                            <th>Amount</th>
+                            <th>YoY Change</th>
+                            <th>Link</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="table-footer" id="tableFooter"></div>
+        </div>
+    </main>
+
+    <script src="canada-map.js"></script>
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
