@@ -268,3 +268,9 @@ function initThemeToggle(){
 }
 
 init();
+
+// Called by canada-map.js once the real SVG paths have loaded
+window.onMapReady = function() {
+  const yr = document.getElementById('yearFilter');
+  if (yr) renderMap(yr.value);
+};

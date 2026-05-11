@@ -1,22 +1,8 @@
 /* ============================================================
    PERIODICALS DASHBOARD — canada-map.js
-   Simplified SVG province paths for the Canada map
+   Real province paths from @svg-maps/canada (CC-BY-4.0)
+   Loaded via CDN, parsed, and injected at runtime.
    ============================================================ */
-const CANADA_PATHS = {
-  BC: "M80,340 L80,280 L100,250 L120,220 L110,190 L130,160 L140,180 L160,200 L170,240 L165,280 L155,310 L140,340 L120,360 L95,370 Z",
-  AB: "M170,240 L160,200 L175,170 L195,160 L210,180 L215,240 L210,300 L195,340 L170,350 L155,310 L165,280 Z",
-  SK: "M215,240 L210,180 L230,160 L260,160 L275,180 L275,240 L270,300 L250,340 L220,340 L210,300 Z",
-  MB: "M275,240 L275,180 L295,160 L320,155 L340,170 L345,200 L340,240 L330,290 L310,330 L285,340 L270,300 Z",
-  ON: "M340,240 L345,200 L360,180 L390,170 L420,180 L450,200 L470,230 L480,260 L475,300 L455,340 L420,360 L380,350 L350,330 L330,290 Z",
-  QC: "M480,260 L470,220 L490,180 L520,160 L560,155 L590,170 L610,200 L615,240 L605,280 L580,310 L550,330 L515,340 L490,320 L475,300 Z",
-  NB: "M620,270 L615,240 L630,225 L650,230 L660,250 L655,275 L640,290 L625,285 Z",
-  NS: "M660,260 L670,245 L690,240 L710,250 L715,270 L700,285 L680,290 L665,280 Z",
-  PE: "M670,225 L685,218 L700,222 L698,235 L682,238 L668,232 Z",
-  NL: "M630,150 L660,130 L700,125 L730,140 L740,170 L730,200 L700,210 L670,205 L645,185 L635,165 Z",
-  YT: "M90,150 L100,110 L120,80 L145,70 L160,90 L155,130 L140,160 L130,160 L110,190 L100,170 Z",
-  NT: "M160,90 L180,60 L220,45 L270,50 L310,65 L330,90 L340,120 L340,155 L320,155 L295,160 L260,160 L230,160 L195,160 L175,170 L160,145 L155,130 Z",
-  NU: "M340,120 L370,80 L420,50 L480,40 L540,55 L580,90 L590,130 L580,155 L560,155 L520,160 L490,150 L460,140 L430,130 L400,125 L370,130 L350,140 L340,155 Z"
-};
 
 const PROV_FULL_NAMES = {
   AB: 'Alberta', BC: 'British Columbia', MB: 'Manitoba',
@@ -24,3 +10,45 @@ const PROV_FULL_NAMES = {
   NT: 'Northwest Territories', NU: 'Nunavut', ON: 'Ontario',
   PE: 'Prince Edward Island', QC: 'Quebec', SK: 'Saskatchewan', YT: 'Yukon'
 };
+
+const MAP_SVG_URL = 'https://cdn.jsdelivr.net/npm/@svg-maps/canada/canada.svg';
+
+// Fetches the real SVG, extracts paths, injects them into #canadaMap
+async function loadCanadaMap() {
+  try {
+    const resp = await fetch(MAP_SVG_URL);
+    if (!resp.ok) throw new Error('Failed to fetch map SVG');
+    const text = await resp.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, 'image/svg+xml');
+    const svgEl = doc.querySelector('svg');
+    if (!svgEl) throw new Error('No SVG element found');
+
+    // Copy viewBox
+    const target = document.getElementById('canadaMap');
+    if (!target) return;
+    const vb = svgEl.getAttribute('viewBox');
+    if (vb) target.setAttribute('viewBox', vb);
+
+    // Extract paths by id → province code
+    const ID_MAP = {ab:'AB',bc:'BC',mb:'MB',nb:'NB',nl:'NL',ns:'NS',nt:'NT',nu:'NU',on:'ON',pe:'PE',qc:'QC',sk:'SK',yt:'YT'};
+    window.CANADA_PATHS = {};
+    svgEl.querySelectorAll('path').forEach(p => {
+      const id = p.getAttribute('id');
+      const code = ID_MAP[id];
+      if (code) {
+        window.CANADA_PATHS[code] = p.getAttribute('d');
+      }
+    });
+
+    // Signal that map is ready
+    if (typeof window.onMapReady === 'function') window.onMapReady();
+  } catch (e) {
+    console.warn('Canada map load failed:', e.message);
+    // Hide map card gracefully
+    const card = document.getElementById('mapContainer');
+    if (card && card.parentElement) card.parentElement.style.display = 'none';
+  }
+}
+
+loadCanadaMap();
