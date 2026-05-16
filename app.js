@@ -62,12 +62,82 @@ function updatePickerLabel(){
 
 function initRecipientPicker(){
   const btn=document.getElementById('recipientPickerBtn'),dd=document.getElementById('recipientDropdown');
-  btn.addEventListener('click',e=>{e.stopPropagation();const open=dd.classList.contains('open');if(!open){dd.classList.add('open');btn.setAttribute('aria-expanded','true');document.getElementById('recipientSearch').focus();}else{dd.classList.remove('open');btn.setAttribute('aria-expanded','false');}});
-  document.addEventListener('click',e=>{if(!document.getElementById('recipientPicker').contains(e.target)){dd.classList.remove('open');btn.setAttribute('aria-expanded','false');}});
-  document.getElementById('recipientSearch').addEventListener('input',e=>{const q=e.target.value.toLowerCase();document.querySelectorAll('#recipientList .picker-item').forEach(el=>{el.style.display=el.textContent.toLowerCase().includes(q)?'':'none';});});
-  document.getElementById('selectAllBtn').addEventListener('click',()=>{rawData.forEach(d=>selectedRecipients.add(d.recipient));populateRecipients();updatePickerLabel();updateDashboard();});
-  document.getElementById('selectNoneBtn').addEventListener('click',()=>{selectedRecipients.clear();populateRecipients();updatePickerLabel();updateDashboard();});
+  const searchInput=document.getElementById('recipientSearch');
+
+  // Toggle dropdown on button click
+  btn.addEventListener('click',e=>{
+    e.stopPropagation();
+    const open=dd.classList.contains('open');
+    if(!open){dd.classList.add('open');btn.setAttribute('aria-expanded','true');searchInput.focus();}
+    else{dd.classList.remove('open');btn.setAttribute('aria-expanded','false');}
+  });
+
+  // Close only on outside click (NOT on item clicks inside the dropdown)
+  document.addEventListener('click',e=>{
+    if(!document.getElementById('recipientPicker').contains(e.target)){
+      dd.classList.remove('open');btn.setAttribute('aria-expanded','false');
+    }
+  });
+
+  // Search: filter list AND auto-select all matches
+  let searchDebounce=null;
+  searchInput.addEventListener('input',e=>{
+    const q=e.target.value.toLowerCase();
+    // Filter visibility
+    document.querySelectorAll('#recipientList .picker-item').forEach(el=>{
+      el.style.display=el.textContent.toLowerCase().includes(q)?'':'none';
+    });
+    // Auto-select matches after a short debounce (so typing feels responsive)
+    clearTimeout(searchDebounce);
+    if(q.length>=2){
+      searchDebounce=setTimeout(()=>{
+        selectedRecipients.clear();
+        const allRecips=[...new Set(rawData.map(d=>d.recipient))];
+        allRecips.forEach(r=>{if(r.toLowerCase().includes(q))selectedRecipients.add(r);});
+        populateRecipients();
+        // Re-apply visibility filter after re-render
+        document.querySelectorAll('#recipientList .picker-item').forEach(el=>{
+          el.style.display=el.textContent.toLowerCase().includes(q)?'':'none';
+        });
+        updatePickerLabel();updateDashboard();
+      },400);
+    } else if(q.length===0){
+      // Cleared search — reset to all
+      searchDebounce=setTimeout(()=>{
+        selectedRecipients.clear();
+        populateRecipients();updatePickerLabel();updateDashboard();
+      },400);
+    }
+  });
+
+  // Select Matches: select only currently visible items
+  document.getElementById('selectMatchesBtn').addEventListener('click',()=>{
+    const q=(searchInput.value||'').toLowerCase();
+    selectedRecipients.clear();
+    const allRecips=[...new Set(rawData.map(d=>d.recipient))];
+    allRecips.forEach(r=>{
+      if(!q || r.toLowerCase().includes(q)) selectedRecipients.add(r);
+    });
+    populateRecipients();
+    // Re-apply visibility filter
+    if(q){document.querySelectorAll('#recipientList .picker-item').forEach(el=>{
+      el.style.display=el.textContent.toLowerCase().includes(q)?'':'none';
+    });}
+    updatePickerLabel();updateDashboard();
+  });
+
+  // Select All (ignores search filter)
+  document.getElementById('selectAllBtn').addEventListener('click',()=>{
+    rawData.forEach(d=>selectedRecipients.add(d.recipient));
+    populateRecipients();updatePickerLabel();updateDashboard();
+  });
+
+  // Select None
+  document.getElementById('selectNoneBtn').addEventListener('click',()=>{
+    selectedRecipients.clear();populateRecipients();updatePickerLabel();updateDashboard();
+  });
 }
+
 
 function initTrendToggle(){
   document.getElementById('trendMetricToggle').addEventListener('click',()=>{
