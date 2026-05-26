@@ -1,7 +1,7 @@
 /* Periodicals Dashboard — app.js */
 const PALETTE=['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#06b6d4','#f97316','#ec4899','#84cc16','#6366f1','#14b8a6','#e11d48','#7c3aed'];
 const PROV_COLORS={AB:'#ef4444',BC:'#3b82f6',MB:'#f59e0b',NB:'#8b5cf6',NL:'#06b6d4',NS:'#10b981',NT:'#f97316',NU:'#ec4899',ON:'#84cc16',PE:'#6366f1',QC:'#14b8a6',SK:'#e11d48',YT:'#7c3aed',Unknown:'#64748b'};
-let charts={},selectedRecipients=new Set(),trendMetric='amount';
+let charts={},selectedRecipients=new Set(),trendMetric='amount',combineMode=false;
 
 function gc(){const s=getComputedStyle(document.body);return{tick:s.getPropertyValue('--chart-tick').trim()||'#64748b',tickLight:s.getPropertyValue('--chart-tick-light').trim()||'#94a3b8',grid:s.getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,0.04)'};}
 function fmt$(v){if(v>=1e6)return'$'+(v/1e6).toFixed(1)+'M';if(v>=1e3)return'$'+(v/1e3).toFixed(0)+'K';return'$'+v.toLocaleString();}
@@ -19,7 +19,7 @@ function init(){
   if(typeof rawData==='undefined'||!rawData.length)return;
   document.getElementById('loader').classList.add('hidden');
   populateYears();populateProvinces();populateRecipients();
-  setupListeners();initThemeToggle();initRecipientPicker();initTrendToggle();
+  setupListeners();initThemeToggle();initRecipientPicker();initTrendToggle();initCombineToggle();
   updateDashboard();
 }
 
@@ -149,6 +149,15 @@ function initTrendToggle(){
   });
 }
 
+function initCombineToggle(){
+  document.getElementById('combineToggle').addEventListener('click',()=>{
+    combineMode=!combineMode;
+    const btn=document.getElementById('combineToggle');
+    if(combineMode)btn.classList.add('active');else btn.classList.remove('active');
+    updateDashboard();
+  });
+}
+
 function setupListeners(){
   ['yearFilter','startYearFilter','provinceFilter'].forEach(id=>document.getElementById(id).addEventListener('change',()=>updateDashboard()));
   ['tableSearch','tableSortField','tableSortDir'].forEach(id=>{const el=document.getElementById(id);el.addEventListener('input',renderTable);el.addEventListener('change',renderTable);});
@@ -208,20 +217,27 @@ function renderKPIs(yr,startYr){
 function renderTrendChart(yr,startYr){
   if(charts.line)charts.line.destroy();const cc=gc();
   const data=getFiltered();const metric=trendMetric;
-  const hasSelection=selectedRecipients.size>0&&selectedRecipients.size<=8;
+  const hasSelection=selectedRecipients.size>0;
+  const showIndividual=hasSelection&&!combineMode&&selectedRecipients.size<=8;
   const yrs=[...new Set(data.map(d=>d.year))].sort().filter(y=>y>=parseInt(startYr)&&y<=parseInt(yr));
   let datasets=[];
-  if(hasSelection){
+  if(showIndividual){
+    // Individual lines per recipient
     let i=0;[...selectedRecipients].forEach(r=>{
       const pts=yrs.map(y=>{const sum=data.filter(d=>d.recipient===r&&d.year===y).reduce((s,d)=>s+d[metric],0);return{x:String(y),y:sum};});
       datasets.push({label:r.length>35?r.substring(0,35)+'…':r,data:pts,borderColor:PALETTE[i%PALETTE.length],backgroundColor:PALETTE[i%PALETTE.length]+'18',borderWidth:2.2,fill:false,tension:0.35,pointRadius:3,pointHoverRadius:6});i++;
     });
   }else{
+    // Combined single line (either combine mode, >8 selected, or no selection)
     const pts=yrs.map(y=>{const sum=data.filter(d=>d.year===y).reduce((s,d)=>s+d[metric],0);return{x:String(y),y:sum};});
-    datasets=[{label:metric==='amount'?'Total Funding ($)':'Payment Count',data:pts,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.15)',borderWidth:3,fill:true,tension:0.35,pointRadius:4,pointHoverRadius:7}];
+    const lbl=hasSelection&&combineMode?'Combined Selected ('+selectedRecipients.size+')':metric==='amount'?'Total Funding ($)':'Payment Count';
+    datasets=[{label:lbl,data:pts,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.15)',borderWidth:3,fill:true,tension:0.35,pointRadius:4,pointHoverRadius:7}];
   }
-  document.getElementById('trendTitle').textContent=hasSelection?'Selected Recipients — Over Time':'Funding Over Time';
-  charts.line=new Chart(document.getElementById('lineChart'),{type:'line',data:{labels:yrs.map(String),datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:hasSelection,position:'bottom',labels:{color:cc.tickLight,font:{size:11,family:"'Inter',system-ui,sans-serif"},padding:14,boxWidth:28,usePointStyle:true}},tooltip:{mode:'index',intersect:false,callbacks:{label:c=>'  '+c.dataset.label+': '+(metric==='amount'?fmt$(c.raw.y):Number(c.raw.y).toLocaleString())}}},scales:{y:{grid:{color:cc.grid},ticks:{color:cc.tick,font:{size:11},callback:v=>metric==='amount'?fmt$(v):fmtN(v)}},x:{grid:{display:false},ticks:{color:cc.tick,font:{size:10},maxRotation:45}}},interaction:{mode:'index',intersect:false}}});
+  // Update title
+  if(hasSelection&&combineMode) document.getElementById('trendTitle').textContent='Combined Selected Recipients — Over Time';
+  else if(showIndividual) document.getElementById('trendTitle').textContent='Selected Recipients — Over Time';
+  else document.getElementById('trendTitle').textContent='Funding Over Time';
+  charts.line=new Chart(document.getElementById('lineChart'),{type:'line',data:{labels:yrs.map(String),datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:showIndividual,position:'bottom',labels:{color:cc.tickLight,font:{size:11,family:"'Inter',system-ui,sans-serif"},padding:14,boxWidth:28,usePointStyle:true}},tooltip:{mode:'index',intersect:false,callbacks:{label:c=>'  '+c.dataset.label+': '+(metric==='amount'?fmt$(c.raw.y):Number(c.raw.y).toLocaleString())}}},scales:{y:{grid:{color:cc.grid},ticks:{color:cc.tick,font:{size:11},callback:v=>metric==='amount'?fmt$(v):fmtN(v)}},x:{grid:{display:false},ticks:{color:cc.tick,font:{size:10},maxRotation:45}}},interaction:{mode:'index',intersect:false}}});
 }
 
 function renderTrendSummary(startYr,endYr){
